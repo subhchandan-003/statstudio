@@ -4,45 +4,29 @@ A Python-powered, scriptable market research and statistics platform with a
 web front end, interactive graphing, a visual terminal and reproducible
 workflows. See [PRD_StatStudio.md](PRD_StatStudio.md) for the full spec.
 
-This is the master scaffold: repo structure, tooling and a working
-`/health` round-trip between frontend and backend. Feature modules (upload,
-charting, visual terminal, real-time viz) are built incrementally per the
-PRD's Claude Code prompt pack (section 4).
+**Architecture note:** this build deviates from the PRD's original
+persistent-storage design. Uploaded files/datasets are processed live,
+in-request, and never persisted — there is no database, object storage or
+job queue. This keeps the whole thing stateless, which maps cleanly onto
+Vercel's serverless model for both the frontend and the backend.
 
 ## Stack
 
-- Backend: FastAPI (Python 3.12), SQLAlchemy 2.0, Alembic, Pydantic v2,
-  Celery + Redis, managed with `uv`.
+- Backend: FastAPI (Python 3.12), Pydantic v2, managed with `uv`. Deployed
+  as Vercel serverless functions (no server process to keep alive).
 - Stats engine: pure package under `backend/app/engine`, no web imports.
 - Frontend: React 18 + TypeScript + Vite + Tailwind, TanStack Query,
-  Zustand, Plotly.js, xterm.js, managed with `pnpm`.
-- Data: PostgreSQL 16, Redis, MinIO (S3-compatible).
+  Zustand, Plotly.js, xterm.js, managed with `pnpm`. Deployed as a static
+  Vercel site.
 
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/) (Python dependency manager)
 - [pnpm](https://pnpm.io/) (Node dependency manager)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for the
-  full local stack: Postgres, Redis, MinIO)
+- [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`, then
+  `vercel login`) if you want to deploy
 
-## Run locally with Docker (full stack)
-
-```bash
-cp .env.example .env          # edit secrets as needed
-docker compose up --build     # api, worker, db, redis, minio, frontend
-
-curl http://localhost:8000/health          # backend
-open http://localhost:5173                 # frontend
-
-docker compose exec api uv run alembic upgrade head
-docker compose exec api uv run pytest
-docker compose exec frontend pnpm test
-```
-
-## Run locally without Docker (backend/frontend only, no Postgres/Redis/MinIO)
-
-Useful for iterating on code and running lint/typecheck/tests without the
-full data tier.
+## Run locally
 
 ```bash
 # backend
@@ -62,19 +46,43 @@ pnpm exec vitest run
 pnpm dev                                # http://localhost:5173
 ```
 
+Copy `.env.example` to `.env` in each of `backend/` and `frontend/` (or the
+repo root, read by both) and adjust `VITE_API_BASE` to point at wherever
+the backend is running.
+
+## Deploy to Vercel
+
+Each side of the monorepo is its own Vercel project, linked by running
+`vercel link` from within that subdirectory so its root directory is set
+correctly.
+
+```bash
+# backend — FastAPI is auto-detected via pyproject.toml's [tool.vercel]
+# entrypoint (app.main:app); no vercel.json needed.
+cd backend
+vercel link --yes
+vercel deploy --prod --yes
+
+# frontend — set VITE_API_BASE to the backend's production URL first
+cd frontend
+vercel env add VITE_API_BASE production
+vercel link --yes
+vercel deploy --prod --yes
+```
+
+After the first backend deploy, set `CORS_ORIGINS` on the backend project
+to include the frontend's production URL and redeploy.
+
 ## Repository layout
 
 ```
 backend/app/
   main.py       FastAPI app factory, mounts /api/v1
   config.py     typed settings (pydantic-settings)
-  deps.py       DB session dependency
-  models/       SQLAlchemy 2.0 models
-  schemas/      Pydantic request/response schemas
   api/v1/       versioned routers
   engine/       pure stats engine, zero web imports (reused by the terminal)
+  services/     request-scoped processing (upload/analyze — no persistence)
   sandbox/      restricted REPL executor (visual terminal backend)
-  tasks/        Celery app and tasks
   ws/           websocket handlers
 
 frontend/src/
@@ -84,6 +92,7 @@ frontend/src/
 
 ## Status
 
-Master scaffold only. See `PRD_StatStudio.md` section 4.2 onward for the
-next modules (secure upload/download, charting, visual terminal, real-time
-visualisation, screenshots).
+Scaffold + hosting only. See `PRD_StatStudio.md` section 4.2 onward for the
+next modules (live upload/describe, charting, visual terminal, real-time
+visualisation, screenshots) — reworked to process in-memory per request
+instead of persisting to a database.
