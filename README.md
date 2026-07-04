@@ -79,20 +79,27 @@ to include the frontend's production URL and redeploy.
 backend/app/
   main.py       FastAPI app factory, mounts /api/v1
   config.py     typed settings (pydantic-settings)
-  api/v1/       versioned routers
-  engine/       pure stats engine, zero web imports (reused by the terminal)
-  services/     request-scoped processing (upload/analyze — no persistence)
+  api/v1/       versioned routers (datasets.py: POST /datasets/analyze)
+  engine/       pure stats engine, zero web imports (dataset.py, descriptives.py)
+  schemas/      Pydantic request/response models
   sandbox/      restricted REPL executor (visual terminal backend)
   ws/           websocket handlers
 
 frontend/src/
-  main.tsx, App.tsx   app shell
-  lib/api.ts          typed API client
+  main.tsx, App.tsx        app shell
+  lib/api.ts               typed API client
+  components/AnalyzePanel.tsx   upload a CSV/XLSX, view descriptive stats
 ```
+
+**Known constraint:** Vercel serverless functions cap request body size (low
+single-digit MB on the Hobby plan). Large dataset uploads will hit that
+ceiling before hitting the app's own `MAX_UPLOAD_MB` check. Fixing this
+(streaming/chunked upload) is future work.
 
 ## Status
 
-Scaffold + hosting only. See `PRD_StatStudio.md` section 4.2 onward for the
-next modules (live upload/describe, charting, visual terminal, real-time
-visualisation, screenshots) — reworked to process in-memory per request
-instead of persisting to a database.
+Upload → live descriptive statistics (CSV/XLSX, in-memory, nothing
+persisted) is working end to end. See `PRD_StatStudio.md` section 4.2
+onward for what's next (charting, visual terminal, real-time visualisation,
+screenshots) — each reworked to process in-memory per request instead of
+persisting to a database.
