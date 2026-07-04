@@ -1,5 +1,7 @@
+import io
 from collections.abc import Iterator
 
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -27,6 +29,21 @@ def test_analyze_valid_csv_returns_schema_and_stats() -> None:
     assert by_name["age"]["numeric"]["mean"] == 30.0
     assert by_name["segment"]["measure"] == "nominal"
     assert by_name["segment"]["top_values"] is not None
+
+
+def test_analyze_accepts_parquet() -> None:
+    df = pd.DataFrame({"age": [25, 30], "segment": ["A", "B"]})
+    buffer = io.BytesIO()
+    df.to_parquet(buffer, engine="pyarrow")
+
+    response = client.post(
+        "/api/v1/datasets/analyze",
+        files={"file": ("survey.parquet", buffer.getvalue(), "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["row_count"] == 2
+    assert body["column_count"] == 2
 
 
 def test_analyze_rejects_unsupported_extension() -> None:

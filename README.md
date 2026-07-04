@@ -88,7 +88,7 @@ backend/app/
 frontend/src/
   main.tsx, App.tsx        app shell
   lib/api.ts               typed API client
-  components/AnalyzePanel.tsx   upload a CSV/XLSX, view descriptive stats
+  components/AnalyzePanel.tsx   upload a dataset, view descriptive stats
 ```
 
 **Known constraint:** Vercel serverless functions cap request body size (low
@@ -98,8 +98,10 @@ ceiling before hitting the app's own `MAX_UPLOAD_MB` check. Fixing this
 
 ## Status
 
-Upload → live descriptive statistics (CSV/XLSX, in-memory, nothing
-persisted) is working end to end. See `PRD_StatStudio.md` section 4.2
+Upload → live descriptive statistics (CSV, TSV, XLSX, XLS, Parquet —
+in-memory, nothing persisted) is working end to end. SPSS `.sav` support
+(PRD Iteration 4) is the next format to add if needed. See
+`PRD_StatStudio.md` section 4.2
 onward for what's next (charting, visual terminal, real-time visualisation,
 screenshots) — each reworked to process in-memory per request instead of
 persisting to a database.

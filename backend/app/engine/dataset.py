@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-SUPPORTED_EXTENSIONS = (".csv", ".xlsx")
+SUPPORTED_EXTENSIONS = (".csv", ".tsv", ".xlsx", ".xls", ".parquet")
 
 
 @dataclass
@@ -23,7 +23,13 @@ def load_dataframe(content: bytes, filename: str) -> pd.DataFrame:
     try:
         if lower_name.endswith(".csv"):
             return pd.read_csv(buffer)
-        return pd.read_excel(buffer)
+        if lower_name.endswith(".tsv"):
+            return pd.read_csv(buffer, sep="\t")
+        if lower_name.endswith(".xlsx"):
+            return pd.read_excel(buffer, engine="openpyxl")
+        if lower_name.endswith(".xls"):
+            return pd.read_excel(buffer, engine="xlrd")
+        return pd.read_parquet(buffer)
     except Exception as exc:
         raise ValueError(f"Could not parse {filename}: {exc}") from exc
 

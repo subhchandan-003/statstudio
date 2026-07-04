@@ -56,13 +56,14 @@ export default function AnalyzePanel(): JSX.Element {
     <div className="mt-6 w-full max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-900">Analyze a dataset</h2>
       <p className="mt-1 text-sm text-slate-600">
-        Upload a CSV or XLSX file. It is parsed in memory and never stored.
+        Upload a CSV, TSV, XLSX, XLS or Parquet file. It is parsed in memory
+        and never stored.
       </p>
 
       <div className="mt-4 flex items-center gap-3">
         <input
           type="file"
-          accept=".csv,.xlsx"
+          accept=".csv,.tsv,.xlsx,.xls,.parquet"
           aria-label="Choose dataset file"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className="text-sm text-slate-700"
