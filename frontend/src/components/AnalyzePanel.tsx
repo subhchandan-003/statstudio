@@ -1,8 +1,40 @@
 import { useState } from "react";
 
 import { analyzeDataset, type AnalyzeResponse, type ColumnSummary } from "../lib/api";
+import { analyzeFileClientSide } from "../lib/clientAnalyze";
 
 type Status = "idle" | "loading" | "error" | "success";
+
+const CLIENT_SIDE_EXTENSIONS = [".csv", ".tsv", ".xlsx", ".xls"];
+const PARQUET_SAFE_BYTES = 4 * 1024 * 1024;
+
+function isClientSide(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return CLIENT_SIDE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+async function analyzeAny(file: File): Promise<AnalyzeResponse> {
+  if (isClientSide(file.name)) {
+    return analyzeFileClientSide(file);
+  }
+  if (file.size > PARQUET_SAFE_BYTES) {
+    throw new Error(
+      "This file is too large for server-side processing (the deployment's Parquet " +
+        "path is capped at roughly 4MB by the hosting platform). CSV/TSV/XLSX/XLS files " +
+        "have no size limit since they're processed in your browser."
+    );
+  }
+  try {
+    return await analyzeDataset(file);
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        "Network error reaching the server. The file may be too large or the connection failed."
+      );
+    }
+    throw err;
+  }
+}
 
 function formatNumber(value: number | null): string {
   return value === null ? "—" : value.toFixed(2);
@@ -43,7 +75,7 @@ export default function AnalyzePanel(): JSX.Element {
     setStatus("loading");
     setErrorMessage(null);
     try {
-      const response = await analyzeDataset(file);
+      const response = await analyzeAny(file);
       setResult(response);
       setStatus("success");
     } catch (err) {
@@ -56,8 +88,9 @@ export default function AnalyzePanel(): JSX.Element {
     <div className="mt-6 w-full max-w-3xl rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-900">Analyze a dataset</h2>
       <p className="mt-1 text-sm text-slate-600">
-        Upload a CSV, TSV, XLSX, XLS or Parquet file. It is parsed in memory
-        and never stored.
+        CSV, TSV, XLSX and XLS are parsed entirely in your browser — no size
+        limit, nothing ever uploaded. Parquet is processed on the server and
+        capped at roughly 4MB.
       </p>
 
       <div className="mt-4 flex items-center gap-3">
